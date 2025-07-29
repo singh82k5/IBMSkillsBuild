@@ -1,21 +1,71 @@
-MIT License
+from google.colab import files
+uploaded = files.upload()
+# STEP 1: Import libraries
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+import joblib
 
-Copyright (c) 2025 singh82k5
+# STEP 2: Load the uploaded file
+df = pd.read_csv("adult 3.csv")
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+# STEP 3: Clean data – replace '?' with NaN and drop rows with missing data
+df = df.replace(" ?", pd.NA).dropna()
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+# STEP 4: Split features and label
+X = df.drop("income", axis=1)
+y = df["income"]
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+# STEP 5: Identify categorical and numeric columns
+categorical_cols = X.select_dtypes(include="object").columns.tolist()
+numerical_cols = X.select_dtypes(include=["int64", "float64"]).columns.tolist()
+
+# STEP 6: Create preprocessing + classifier pipeline
+preprocessor = ColumnTransformer([
+    ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols)
+], remainder="passthrough")
+
+model = Pipeline(steps=[
+    ("preprocessor", preprocessor),
+    ("classifier", RandomForestClassifier(random_state=42))
+])
+
+# STEP 7: Train/test split and fit the model
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model.fit(X_train, y_train)
+
+# STEP 8: Evaluate the model
+y_pred = model.predict(X_test)
+print("Model Performance:\n")
+print(classification_report(y_test, y_pred))
+
+# STEP 9: Save the model
+joblib.dump(model, "employee_income_model.pkl")
+# Load model
+model = joblib.load("employee_income_model.pkl")
+
+# Sample input (must match training columns)
+new_employee = pd.DataFrame([{
+    'age': 40,
+    'workclass': 'Private',
+    'fnlwgt': 170000,
+    'education': 'Bachelors',
+    'educational-num': 13,
+    'marital-status': 'Married-civ-spouse',
+    'occupation': 'Exec-managerial',
+    'relationship': 'Husband',
+    'race': 'White',
+    'gender': 'Male',
+    'capital-gain': 0,
+    'capital-loss': 0,
+    'hours-per-week': 50,
+    'native-country': 'United-States'
+}])
+
+# Predict income
+prediction = model.predict(new_employee)
+print("Predicted Income Category:", prediction[0])
